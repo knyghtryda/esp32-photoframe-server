@@ -136,6 +136,17 @@ func (d *Device) IsGrayscale() bool {
 	return strings.HasPrefix(d.DisplayType, "gc") || d.BoardName == "seeedstudio_reterminal_e1003"
 }
 
+// DisplayTypeRGB is reported by a panel that takes plain full-color images
+// and quantizes/dithers them itself, with no way to turn that off (e.g. a
+// Samsung EMDX display behind node-samsung-emdx's bridge).
+const DisplayTypeRGB = "rgb"
+
+// DithersOnDevice reports whether the panel does its own quantization and
+// dithering, so the server must send it tone-mapped full-color pixels.
+func (d *Device) DithersOnDevice() bool {
+	return d.DisplayType == DisplayTypeRGB
+}
+
 const (
 	LayoutPhotoInfo    = "photo_info"
 	LayoutPhotoOverlay = "photo_overlay"

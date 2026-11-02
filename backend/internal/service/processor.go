@@ -101,6 +101,24 @@ func (s *ProcessorService) MapProcessingSettings(settings *photoframe.Processing
 	return opts
 }
 
+// ApplyOnDeviceDithering rewrites converter options for a panel that
+// quantizes and dithers on its own. Layout and tone mapping (exposure,
+// saturation, contrast / S-curve) still run; palette quantization,
+// dithering and dynamic-range compression to a measured palette do not --
+// the panel would apply them a second time. Output is full-color PNG.
+// Call it after every other option is merged, so nothing re-adds them.
+func ApplyOnDeviceDithering(opts map[string]string) {
+	for _, k := range []string{
+		"palette", "palette-preset", "dither-algorithm", "color-method",
+		"compress-dynamic-range", "gray-black-y", "gray-white-y", "gray-gamma",
+	} {
+		delete(opts, k)
+	}
+	opts["no-compress-dynamic-range"] = "" // Boolean flag
+	opts["skip-dithering"] = ""            // Boolean flag
+	opts["format"] = "png"
+}
+
 func (s *ProcessorService) ProcessImage(img image.Image, options map[string]string) ([]byte, []byte, error) {
 	// 1. Create temp directory for this operation
 	tmpDir, err := os.MkdirTemp("", "process-*")

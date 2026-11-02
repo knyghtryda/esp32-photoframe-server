@@ -488,6 +488,11 @@ func (h *ImageHandler) ServeImage(c echo.Context) error {
 	for k, v := range headerOpts {
 		procOptions[k] = v
 	}
+	if deviceFound && device.DithersOnDevice() {
+		service.ApplyOnDeviceDithering(procOptions)
+	}
+	// ProcessImage consumes the "format" option, so read it first.
+	pngOutput := procOptions["format"] == "png"
 
 	log.Println("Processing image with options: ", procOptions)
 	processedBytes, thumbBytes, err := h.processor.ProcessImage(imgWithOverlay, procOptions)
@@ -516,7 +521,7 @@ func (h *ImageHandler) ServeImage(c echo.Context) error {
 	c.Response().Header().Set("Content-Length", fmt.Sprintf("%d", len(processedBytes)))
 
 	contentType := "application/octet-stream"
-	if firmwareVersion == "" || !photoframe.SupportsEPDGZ(firmwareVersion) {
+	if pngOutput {
 		contentType = "image/png"
 	}
 	return c.Blob(http.StatusOK, contentType, processedBytes)

@@ -1217,7 +1217,11 @@
                     <v-tab value="homeAssistant">Home Assistant</v-tab>
                     <v-tab value="processing">Processing</v-tab>
                     <v-tab value="ai">AI Generation</v-tab>
-                    <v-tab v-if="!isGrayscale" value="palette">Palette</v-tab>
+                    <v-tab
+                      v-if="!isGrayscale && !dithersOnDevice"
+                      value="palette"
+                      >Palette</v-tab
+                    >
                     <v-tab v-if="isGrayscale" value="grayscale"
                       >Grayscale</v-tab
                     >
@@ -2142,7 +2146,7 @@
                             ></v-select>
                           </v-col>
                         </v-row>
-                        <v-row>
+                        <v-row v-if="!dithersOnDevice">
                           <v-col cols="12" md="4">
                             <v-select
                               v-model="deviceProcessing.ditherAlgorithm"
@@ -2203,7 +2207,7 @@
                               </template>
                             </v-slider>
                           </v-col>
-                          <v-col cols="12" md="4">
+                          <v-col v-if="!dithersOnDevice" cols="12" md="4">
                             <v-checkbox
                               v-model="deviceProcessing.compressDynamicRange"
                               label="Compress Dynamic Range"
@@ -3079,10 +3083,14 @@ const deviceDialogTab = ref('general');
 const isGrayscale = computed(() =>
   (editingDevice.display_type ?? '').startsWith('gc')
 );
+// Panels that dither on-device ("rgb", e.g. a Samsung EMDX behind its
+// bridge) get full-color images: dithering, color matching, dynamic-range
+// compression and the palette calibration don't apply.
+const dithersOnDevice = computed(() => editingDevice.display_type === 'rgb');
 // Don't strand the user on a tab that's hidden for the current device type:
 // the Palette tab is color-only; the Grayscale tab is grayscale-only.
-watch(isGrayscale, (gray) => {
-  if (gray && deviceDialogTab.value === 'palette') {
+watch([isGrayscale, dithersOnDevice], ([gray, rgb]) => {
+  if ((gray || rgb) && deviceDialogTab.value === 'palette') {
     deviceDialogTab.value = 'general';
   } else if (!gray && deviceDialogTab.value === 'grayscale') {
     deviceDialogTab.value = 'general';

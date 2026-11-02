@@ -657,6 +657,9 @@ func (s *DeviceService) PushToHost(device *model.Device, imagePath string, extra
 	for k, v := range processingOpts {
 		opts[k] = v
 	}
+	if device.DithersOnDevice() {
+		ApplyOnDeviceDithering(opts)
+	}
 
 	processedData, thumbData, err := s.processor.ProcessImage(finalImg, opts)
 	if err != nil {

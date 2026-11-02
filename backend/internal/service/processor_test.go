@@ -36,3 +36,43 @@ func TestMapProcessingSettings_CompressDynamicRange(t *testing.T) {
 		}
 	}
 }
+
+// A panel that dithers on-device must get tone-mapped full-color PNG: no
+// palette, no dithering, no compression to a measured palette -- even when
+// the stored settings ask for them -- while tone and layout options survive.
+func TestApplyOnDeviceDithering(t *testing.T) {
+	proc := NewProcessorService()
+	palette := &photoframe.Palette{White: photoframe.PaletteColor{R: 200, G: 200, B: 190}}
+	opts := proc.MapProcessingSettings(&photoframe.ProcessingSettings{
+		Exposure:             1.2,
+		Saturation:           1.1,
+		Contrast:             1.3,
+		ToneMode:             "contrast",
+		ColorMethod:          "lab",
+		DitherAlgorithm:      "stucki",
+		CompressDynamicRange: true,
+	}, palette, false)
+	opts["dimension"] = "2560x1440"
+	opts["format"] = "epdgz"
+
+	ApplyOnDeviceDithering(opts)
+
+	for _, k := range []string{"palette", "palette-preset", "dither-algorithm", "color-method", "compress-dynamic-range"} {
+		if _, ok := opts[k]; ok {
+			t.Errorf("unexpected --%s in %v", k, opts)
+		}
+	}
+	for _, k := range []string{"skip-dithering", "no-compress-dynamic-range"} {
+		if v, ok := opts[k]; !ok || v != "" {
+			t.Errorf("expected boolean --%s, got %v", k, opts)
+		}
+	}
+	if opts["format"] != "png" {
+		t.Errorf("format = %q, want png", opts["format"])
+	}
+	for k, want := range map[string]string{"exposure": "1.2", "saturation": "1.1", "contrast": "1.3", "tone-mode": "contrast", "dimension": "2560x1440"} {
+		if opts[k] != want {
+			t.Errorf("--%s = %q, want %q", k, opts[k], want)
+		}
+	}
+}
