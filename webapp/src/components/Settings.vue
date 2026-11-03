@@ -3247,10 +3247,26 @@ for (const opt of getPresetOptions()) {
 }
 const ditherOptions = getDitherOptions();
 
+// Controls hidden for panels that dither on-device: presets neither match
+// on them nor change them, or the preset shows "Custom" for no visible
+// reason and applying one edits settings nobody can see
+const onDeviceDitherKeys = [
+  'colorMethod',
+  'ditherAlgorithm',
+  'compressDynamicRange',
+];
+const presetKeyApplies = (k: string) =>
+  !(dithersOnDevice.value && onDeviceDitherKeys.includes(k));
+
 const applyProcessingPreset = (name: string) => {
   const preset = processingPresets[name];
   if (preset) {
-    Object.assign(deviceProcessing, preset);
+    Object.assign(
+      deviceProcessing,
+      Object.fromEntries(
+        Object.entries(preset).filter(([k]) => presetKeyApplies(k))
+      )
+    );
   }
   // 'custom' just keeps current values
 };
@@ -3275,6 +3291,7 @@ const detectProcessingPreset = () => {
   for (const [name, preset] of Object.entries(processingPresets)) {
     const matches = presetKeys.every((k) => {
       if (!(k in preset)) return true; // Skip keys not in this preset
+      if (!presetKeyApplies(k)) return true;
       const pv = (preset as any)[k];
       const dv = (deviceProcessing as any)[k];
       // Tolerant number compare: the device persists floats as 32-bit, so e.g.
@@ -4107,13 +4124,16 @@ const saveDevice = async () => {
         // Grayscale (GC16) panels are calibrated by two luminance endpoints;
         // color panels by the 6 named colors. Both ride the same color_palette
         // field, which the server stores and the device pulls via X-Config-Payload.
-        color_palette: isGrayscale.value
-          ? {
-              black_y: grayscaleCal.black_y,
-              white_y: grayscaleCal.white_y,
-              gamma: grayscaleCal.gamma,
-            }
-          : { ...devicePalette },
+        // Panels that dither on-device have no palette: left out, it's not stored.
+        color_palette: dithersOnDevice.value
+          ? undefined
+          : isGrayscale.value
+            ? {
+                black_y: grayscaleCal.black_y,
+                white_y: grayscaleCal.white_y,
+                gamma: grayscaleCal.gamma,
+              }
+            : { ...devicePalette },
       });
 
       // Persist per-device Immich album bindings (best-effort).
